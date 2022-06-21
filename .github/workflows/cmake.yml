@@ -29,6 +29,9 @@ jobs:
     - name: apt install
       run: sudo apt update && sudo apt install -y vulkan-sdk git cmake g++ glslang-tools libvulkan-dev libasound2-dev libx11-dev libxcursor-dev
       
+    - name: workspace ls
+      run: ls -al ${{github.workspace}}
+      
     - name: git submods
       run: git --git-dir ${{github.workspace}} submodule update --init --recursive
 
