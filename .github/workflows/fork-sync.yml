@@ -34,7 +34,7 @@ jobs:
         git_config_email: 'smatcx@gmail.com'
         target_sync_branch: master
         # REQUIRED 'target_repo_token' exactly like this!
-        target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+        target_repo_token: ${{ secrets.GOTHIC_CI }}
         upstream_sync_branch: master
         upstream_sync_repo: Try/OpenGothic
         upstream_repo_access_token: ${{ secrets.UPSTREAM_REPO_SECRET }}
