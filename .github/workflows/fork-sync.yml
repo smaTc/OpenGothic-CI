@@ -6,7 +6,7 @@ on:
     - cron:  '*/30 * * * *'
   workflow_dispatch:  # click the button on Github repo!
 jobs:
-  merge:
+  sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
