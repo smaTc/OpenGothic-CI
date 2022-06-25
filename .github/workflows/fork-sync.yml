@@ -30,6 +30,8 @@ jobs:
       id: sync
       uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
       with:
+        git_config_user: 'smaTc'
+        git_config_email: 'smatcx@gmail.com'
         target_sync_branch: master
         # REQUIRED 'target_repo_token' exactly like this!
         target_repo_token: ${{ secrets.GITHUB_TOKEN }}
