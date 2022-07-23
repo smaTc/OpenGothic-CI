@@ -491,6 +491,8 @@ bool Npc::resetPositionToTA() {
     }
   setPosition (at->x, at->y, at->z);
   setDirection(at->dirX,at->dirY,at->dirZ);
+  owner.script().fixNpcPosition(*this,0,0);
+
   if(!isDead)
     attachToPoint(at);
   return true;
@@ -1434,6 +1436,10 @@ bool Npc::implAtack(uint64_t dt) {
           if(hit.npcHit!=nullptr && owner.script().personAttitude(*this,*hit.npcHit)==ATT_HOSTILE)
             obsticle = false;
           }
+        }
+      if(auto spl = activeWeapon()) {
+        if(!spl->isSpellShoot())
+          obsticle = false;
         }
       if(obsticle) {
         auto anim = (owner.script().rand(2)==0 ? Npc::Anim::MoveL : Npc::Anim::MoveR);
