@@ -20,8 +20,6 @@
 
 #include <fstream>
 
-#include "graphics/mesh/submesh/staticmesh.h"
-#include "graphics/mesh/submesh/animmesh.h"
 #include "graphics/mesh/submesh/pfxemittermesh.h"
 #include "graphics/mesh/submesh/packedmesh.h"
 #include "graphics/mesh/skeleton.h"
@@ -29,8 +27,6 @@
 #include "graphics/mesh/animation.h"
 #include "graphics/mesh/attachbinder.h"
 #include "graphics/material.h"
-#include "physics/physicmeshshape.h"
-#include "dmusic/music.h"
 #include "dmusic/directmusic.h"
 #include "utils/fileext.h"
 #include "utils/gthfont.h"
@@ -92,12 +88,12 @@ Resources::Resources(Tempest::Device &device)
   }
   }
 
-void Resources::loadVdfs(const std::vector<std::u16string>& modvdfs) {
+void Resources::loadVdfs(const std::vector<std::u16string>& modvdfs, bool modFilter) {
   std::vector<Archive> archives;
   inst->detectVdf(archives,Gothic::inst().nestedPath({u"Data"},Dir::FT_Dir));
 
   // Remove all mod files, that are not listed in modvdfs
-  if(!modvdfs.empty()) {
+  if(modFilter) {
     // NOTE: apparently in CoM there is no mods list declaration. In such case - assume all modes
     archives.erase(std::remove_if(archives.begin(), archives.end(),
                   [&modvdfs](const Archive& a){
@@ -119,8 +115,15 @@ void Resources::loadVdfs(const std::vector<std::u16string>& modvdfs) {
            std::make_tuple(bIsMod,b.time,int(b.ord));
     });
 
-  for(auto& i:archives)
-    inst->gothicAssets.merge(phoenix::vdf_file::open(i.name), false);
+  for(auto& i:archives) {
+    try {
+      inst->gothicAssets.merge(phoenix::vdf_file::open(i.name), false);
+      }
+    catch(...) {
+      Log::e("unable to load archive: \"", TextCodec::toUtf8(i.name), "\"");
+      }
+    }
+  inst->gothicAssets.entries.size();
 
   //for(auto& i:gothicAssets.getKnownFiles())
   //  Log::i(i);
