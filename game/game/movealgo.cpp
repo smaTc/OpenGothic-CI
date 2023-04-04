@@ -299,9 +299,17 @@ void MoveAlgo::tickSwim(uint64_t dt) {
       if(tryMove(dp.x,water-chest-pY+float(i),dp.z))
         break;
       }
-    } else {
-    tryMove(dp.x,dp.y,dp.z);
+    return;
     }
+
+  if(!validW) {
+    setAsDive(false);
+    setAsSwim(false);
+    setInAir (ground<pos.y);
+    return;
+    }
+
+  tryMove(dp.x,dp.y,dp.z);
   }
 
 bool MoveAlgo::tickRun(uint64_t dt, MvFlags moveFlg) {
@@ -958,7 +966,8 @@ void MoveAlgo::onGravityFailed(const DynamicWorld::CollisionTest& info, uint64_t
     }
 
   if(Tempest::Vec3::dotProduct(fallSpeed,norm)<0.f || fallCount>0) {
-    fallSpeed  = norm*0.1f;
+    float len  = fallSpeed.length()/std::max(1.f,fallCount);
+    fallSpeed  = Tempest::Vec3::normalize(norm+fallSpeed)*len*0.25f;
     fallCount  = 0;
     } else {
     fallSpeed += norm*gravity;
