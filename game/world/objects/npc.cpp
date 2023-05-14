@@ -2796,7 +2796,9 @@ gtime Npc::endTime(const Npc::Routine &r) const {
       }
     }
   if(r.start<=time && time<r.end) {
-    return gtime(wtime.day(),r.end.hour(),r.end.minute());
+    if(r.end.hour()==0)
+      return gtime(wtime.day()+1,r.end.hour(),r.end.minute()); else
+      return gtime(wtime.day(),r.end.hour(),r.end.minute());
     }
   // error - routine is not active now
   return wtime;
@@ -3989,6 +3991,8 @@ bool Npc::canSeeNpc(const Npc &oth, bool freeLos) const {
   const auto mid = oth.bounds().midTr;
   if(canSeeNpc(mid.x,mid.y,mid.z,freeLos))
     return true;
+  if(oth.visual.visualSkeleton()==nullptr)
+    return false;
   if(oth.visual.visualSkeleton()->BIP01_HEAD==size_t(-1))
     return false;
   auto head = oth.visual.mapHeadBone();

@@ -13,22 +13,24 @@ const int   KERNEL_RADIUS = 1;
 const float blurSharpness = 0.8;
 
 layout(push_constant, std140) uniform PushConstant {
-  vec3 ambient;
-  vec3 ldir;
-  vec3 clipInfo;
-  } ubo;
+  vec3  ambient;
+  float exposureInv;
+  vec3  ldir;
+  vec3  clipInfo;
+  } push;
 
-layout(binding  = 0) uniform sampler2D diffuse;
-layout(binding  = 1) uniform sampler2D normals;
+layout(binding  = 0) uniform sampler2D gbufDiffuse;
+layout(binding  = 1) uniform sampler2D gbufNormal;
 layout(binding  = 2) uniform sampler2D depth;
 layout(binding  = 3) uniform sampler2D ssao;
+layout(binding  = 4) uniform sampler2D irradiance;
 
 layout(location = 0) in  vec2 uv;
 layout(location = 0) out vec4 outColor;
 
 float texLinearDepth(vec2 uv) {
   float d = textureLod(depth, uv, 0).x;
-  return linearDepth(d, ubo.clipInfo);
+  return linearDepth(d, push.clipInfo);
   }
 
 float blurFunction(vec2 uv, float r, float centerD, inout float wTotal) {
@@ -65,17 +67,37 @@ float smoothSsao() {
   return clamp(cTotal/wTotal, 0, 1);
   }
 
+vec3 ambient() {
+#if 0
+  return push.ambient;
+#else
+  vec3 n = texelFetch(gbufNormal, ivec2(gl_FragCoord.xy), 0).rgb;
+  n = normalize(n*2.0 - vec3(1.0));
+
+  ivec3 d;
+  d.x = n.x>=0 ? 1 : 0;
+  d.y = n.y>=0 ? 1 : 0;
+  d.z = n.z>=0 ? 1 : 0;
+
+  n = abs(n);
+
+  vec3 ret = vec3(0);
+  ret += texelFetch(irradiance, ivec2(0,d.x), 0).rgb * n.x;
+  ret += texelFetch(irradiance, ivec2(1,d.y), 0).rgb * n.y;
+  ret += texelFetch(irradiance, ivec2(2,d.z), 0).rgb * n.z;
+  return ret + push.ambient;
+#endif
+  }
+
 void main() {
-  vec3  diff    = textureLod(diffuse, uv, 0).rgb;
-  float occ     = smoothSsao();
-  //float occ     = textureLod(ssao, uv, 0).r;
+  vec3  diff   = texelFetch(gbufDiffuse, ivec2(gl_FragCoord.xy), 0).rgb;
+  float occ    = smoothSsao();
 
-  vec3  linear  = textureLinear(diff);
-  vec3  lcolor  = ubo.ambient;
+  vec3  linear = textureLinear(diff) * PhotoLumInv;
+  vec3  lcolor = ambient();
 
-  vec3  color   = linear*lcolor;
+  vec3  color  = linear*lcolor;
+  color *= push.exposureInv;
 
-  // outColor = vec4(1-occ);
   outColor = vec4(color*(1-occ), 1);
-  // outColor = vec4(lbuf.rgb - clr*ambient*occ, lbuf.a);
   }

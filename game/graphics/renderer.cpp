@@ -140,6 +140,8 @@ void Renderer::resetSwapchain() {
   for(size_t i=0; i<Resources::MaxFramesInFlight; ++i)
     water.underUbo[i] = device.descriptors(Shaders::inst().underwaterT);
 
+  irradiance.lut = device.image2d(TextureFormat::R11G11B10UF, 3,2);
+
   ssao.ssaoBuf = device.image2d(ssao.aoFormat, swapchain.w(),swapchain.h());
   if(Gothic::inst().doRayQuery() && false) {
     // disabled
@@ -160,6 +162,11 @@ void Renderer::resetSwapchain() {
   ssao.uboCompose.set(1, gbufNormal,   smpN);
   ssao.uboCompose.set(2, zbuffer,      smpN);
   ssao.uboCompose.set(3, ssao.ssaoBuf, smpN);
+  ssao.uboCompose.set(4, irradiance.lut);
+
+  irradiance.pso = &Shaders::inst().irradiance;
+  for(size_t i=0; i<Resources::MaxFramesInFlight; ++i)
+    irradiance.ubo[i] = device.descriptors(*irradiance.pso);
 
   tonemapping.pso     = &Shaders::inst().tonemapping;
   tonemapping.uboTone = device.descriptors(*tonemapping.pso);
@@ -235,6 +242,13 @@ void Renderer::prepareUniforms() {
     auto& u = water.underUbo[i];
     u.set(0, wview->sceneGlobals().uboGlobalPf[i][SceneGlobals::V_Main]);
     u.set(1, zbuffer);
+    }
+
+  for(size_t i=0; i<Resources::MaxFramesInFlight; ++i) {
+    auto& u = irradiance.ubo[i];
+    u.set(0, irradiance.lut);
+    u.set(1, wview->sceneGlobals().uboGlobalPf[i][SceneGlobals::V_Main]);
+    u.set(2, wview->sky().skyLut());
     }
 
   for(size_t i=0; i<Resources::MaxFramesInFlight; ++i) {
@@ -381,6 +395,7 @@ void Renderer::draw(Tempest::Attachment& result, Tempest::Encoder<CommandBuffer>
 
   prepareSSAO(cmd);
   prepareFog (cmd,fId,*wview);
+  prepareIrradiance(cmd,fId);
 
   cmd.setFramebuffer({{sceneLinear, Tempest::Discard, Tempest::Preserve}}, {zbuffer, Tempest::Readonly});
   drawShadowResolve(cmd,fId,*wview);
@@ -412,13 +427,11 @@ void Renderer::drawTonemapping(Tempest::Encoder<Tempest::CommandBuffer>& cmd) {
     float exposureInv = 1.0;
     };
   Push p;
+  /*
   if(auto wview = Gothic::inst().worldView()) {
     p.exposureInv = wview->sky().autoExposure();
     }
-
-  static float dbgExposure = -1;
-  if(dbgExposure>0)
-    p.exposureInv = dbgExposure;
+  */
 
   cmd.setUniforms(*tonemapping.pso, tonemapping.uboTone, &p, sizeof(p));
   cmd.draw(Resources::fsqVbo());
@@ -554,20 +567,26 @@ void Renderer::prepareFog(Tempest::Encoder<Tempest::CommandBuffer>& cmd, uint8_t
   wview.prepareFog(cmd,fId);
   }
 
+void Renderer::prepareIrradiance(Tempest::Encoder<CommandBuffer>& cmd, uint8_t fId) {
+  cmd.setUniforms(*irradiance.pso, irradiance.ubo[fId]);
+  cmd.dispatch(1);
+  }
+
 void Renderer::drawSSAO(Encoder<CommandBuffer>& cmd, const WorldView& view) {
   if(!settings.zCloudShadowScale)
     return;
 
   struct PushSsao {
     Vec3      ambient;
-    float     padd0 = 0;
+    float     exposureInv = 1;
     Vec3      ldir;
     float     padd1 = 0;
     Vec3      clipInfo;
   } push;
-  push.ambient  = view.ambientLight();
-  push.ldir     = view.mainLight().dir();
-  push.clipInfo = clipInfo;
+  push.ambient     = view.ambientLight();
+  push.ldir        = view.mainLight().dir();
+  push.clipInfo    = clipInfo;
+  push.exposureInv = view.sky().autoExposure();
 
   cmd.setUniforms(*ssao.ssaoComposePso,ssao.uboCompose,&push,sizeof(push));
   cmd.draw(Resources::fsqVbo());
