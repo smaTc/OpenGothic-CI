@@ -1,0 +1,23 @@
+#version 460
+
+layout(local_size_x = 64) in;
+
+// https://github.com/Try/Tempest/issues/53
+layout(push_constant, std140) uniform PushConstant {
+  uint dst_length;
+  };
+
+layout(binding = 0, std430) writeonly buffer Output {
+  uint dst[];
+  };
+
+layout(binding = 1, std430) readonly buffer Input {
+  uint src[];
+  };
+
+void main() {
+  const uint lane = gl_GlobalInvocationID.x;
+  if(lane>=dst_length)
+    return;
+  dst[lane] = src[lane];
+  }
