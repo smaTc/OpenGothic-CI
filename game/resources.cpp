@@ -118,7 +118,14 @@ void Resources::loadVdfs(const std::vector<std::u16string>& modvdfs, bool modFil
 
   for(auto& i:archives) {
     try {
-      inst->gothicAssets.merge(phoenix::vdf_file::open(i.name), false);
+      auto in     = phoenix::buffer::mmap(i.name);
+      auto header = phoenix::vdf_header::read(in);
+      if(header.version==160) {
+        Log::e("skip compressed archive: \"", TextCodec::toUtf8(i.name), "\"");
+        continue;
+        }
+      in.rewind();
+      inst->gothicAssets.merge(phoenix::vdf_file::open(in), false);
       }
     catch(const phoenix::vdfs_signature_error& err) {
       Log::e("unable to load archive: \"", TextCodec::toUtf8(i.name), "\", reason: ", err.what());
